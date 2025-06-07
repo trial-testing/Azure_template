@@ -9,11 +9,6 @@
 		"dcrConfig": {
 			"streamName": "SENTINEL_GCP_AUDIT_LOGS"
 		},
-		"auth": {
-			"serviceAccountEmail": "{{GCPServiceAccountEmail}}",
-			"projectNumber": "{{GCPProjectNumber}}",
-			"workloadIdentityProviderId": "{{GCPWorkloadIdentityProviderId}}"
-		},
 		"request": {
 			"projectId": "{{GCPProjectId}}",
 			"subscriptionNames": [
