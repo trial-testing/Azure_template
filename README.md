@@ -1,1 +1,1 @@
-# Azure_template
+# Azure Template
