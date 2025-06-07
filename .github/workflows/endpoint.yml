@@ -49,12 +49,10 @@ jobs:
             -H "Content-Type: application/json" \
             --data-binary "@$JSON_PAYLOAD_PATH")
 
-          echo "API response: $response"
+          status=$(jq -r '.status' <<< "$response")
+          mssg=$(jq -r '.mssg' <<< "$response")
 
-          status=$(echo "$response" | jq -r '.status')
-          mssg=$(echo "$response" | jq -r '.mssg')
 
-          echo "Status: $status"
           if [ "$status" != "passed" ]; then
             echo "❌ Test failed: $mssg"
             exit 1
