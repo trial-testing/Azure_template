@@ -1,5 +1,5 @@
 [{
-	"type": "Microsoft.SecurityInsights/dataConnectors",
+	"type": "Wrong_type",
 	"apiVersion": "2022-10-01-preview",
 	"name": "ErmesBrowserSecurityEvents",
 	"kind": "RestApiPoller",
@@ -10,17 +10,6 @@
 			"streamName": "Custom-Ermes_ClientCredentials",
 			"dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
 			"dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
-		},
-		"auth": {
-			"type": "OAuth2",
-			"ClientSecret": "{{clientSecret}}",
-			"ClientId": "{{clientId}}",
-			"GrantType": "client_credentials",
-			"TokenEndpoint": "https://api.shield.ermessecurity.com/oauth/token",
-			"TokenEndpointHeaders": {
-				"Content-Type": "application/x-www-form-urlencoded"
-			},
-			"TokenEndpointQueryParameters": {}
 		},
 		"request": {
 			"apiEndpoint": "https://api.shield.ermessecurity.com/public/v1/events",
