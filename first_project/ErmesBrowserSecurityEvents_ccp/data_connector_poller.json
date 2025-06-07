@@ -1,7 +1,6 @@
 [{
 	"type": "Microsoft.SecurityInsights/dataConnectors",
 	"apiVersion": "2022-10-01-preview",
-	"name": "ErmesBrowserSecurityEvents",
 	"kind": "RestApiPoller",
 	"properties": {
 		"connectorDefinitionName": "ErmesBrowserSecurityEvents",
