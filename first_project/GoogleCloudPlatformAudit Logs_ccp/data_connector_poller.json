@@ -1,5 +1,5 @@
 [{
-	"type": "Microsoft.SecurityInsights/dataConnectors",
+	"type": "wrong_type",
 	"apiVersion": "2022-10-01-preview",
 	"name": "{{workspace}}/Microsoft.SecurityInsights/GCPAuditLogs",
 	"kind": "GCP",
@@ -13,12 +13,7 @@
 			"serviceAccountEmail": "{{GCPServiceAccountEmail}}",
 			"projectNumber": "{{GCPProjectNumber}}",
 			"workloadIdentityProviderId": "{{GCPWorkloadIdentityProviderId}}"
-		},
-		"request": {
-			"projectId": "{{GCPProjectId}}",
-			"subscriptionNames": [
-				"{{GCPSubscriptionName}}"
-			]
+		}
 		}
 	}
 }]
