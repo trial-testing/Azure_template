@@ -1,0 +1,63 @@
+name: Send changed JSON files on PR
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  send-json-files:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get changed JSON files and contents to send to API endpoint
+        id: prepare_json_files
+        run: |
+          echo "Collecting changed JSON files..."
+
+          BASE="origin/${{ github.event.pull_request.base.ref }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+
+          # Get changed files with .json extension
+          mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
+
+          json_array="["
+          for file in "${files[@]}"; do
+            if [ -f "$file" ]; then
+              content=$(jq -c . < "$file")  # compact JSON
+              json_array+="{\"filename\": \"${file}\", \"content\": $content},"
+            fi
+          done
+
+          # Finalize the JSON array
+          json_array="${json_array%,}]"
+
+          echo "$json_array" > files_payload.json
+          echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
+
+      - name: Send JSON files to API and check response
+        env:
+          API_URL: https://valid1-e2akhdekg6a7a2ch.canadacentral-01.azurewebsites.net/
+        run: |
+          echo "Sending JSON payload to $API_URL..."
+
+          response=$(curl -s -X POST "$API_URL" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$JSON_PAYLOAD_PATH")
+
+          echo "API response: $response"
+
+          status=$(echo "$response" | jq -r '.status')
+          mssg=$(echo "$response" | jq -r '.mssg')
+
+          echo "Status: $status"
+          if [ "$status" != "passed" ]; then
+            echo "❌ Test failed: $mssg"
+            exit 1
+          fi
+
+          echo "✅ Test passed: $mssg"
