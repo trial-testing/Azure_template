@@ -10,17 +10,6 @@
 			"dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
 			"dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
 		},
-		"auth": {
-			"type": "OAuth2",
-			"ClientSecret": "{{clientSecret}}",
-			"ClientId": "{{clientId}}",
-			"GrantType": "client_credentials",
-			"TokenEndpoint": "https://api.shield.ermessecurity.com/oauth/token",
-			"TokenEndpointHeaders": {
-				"Content-Type": "application/x-www-form-urlencoded"
-			},
-			"TokenEndpointQueryParameters": {}
-		},
 		"request": {
 			"apiEndpoint": "https://api.shield.ermessecurity.com/public/v1/events",
 			"httpMethod": "GET",
@@ -40,11 +29,6 @@
 				"Accept": "application/json",
 				"User-Agent": "Scuba"
 			}
-		},
-		"response": {
-			"eventsJsonPaths": [
-				"$._items[*]"
-			]
 		},
 		"paging": {
 			"pagingType": "LinkHeader"
