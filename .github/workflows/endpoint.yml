@@ -43,7 +43,7 @@ jobs:
         env:
           API_URL: https://valid1-e2akhdekg6a7a2ch.canadacentral-01.azurewebsites.net/
         run: |
-          echo "Sending JSON payload to $API_URL..."
+          echo "Sending JSON payload to API"
 
           response=$(curl -s -X POST "$API_URL" \
             -H "Content-Type: application/json" \
