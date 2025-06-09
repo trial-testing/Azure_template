@@ -11,8 +11,7 @@
 		},
 		"auth": {
 			"serviceAccountEmail": "{{GCPServiceAccountEmail}}",
-			"projectNumber": "{{GCPProjectNumber}}",
-			"workloadIdentityProviderId": "{{GCPWorkloadIdentityProviderId}}"
+			"projectNumber": "{{GCPProjectNumber}}"
 		},
 		"request": {
 			"projectId": "{{GCPProjectId}}",
