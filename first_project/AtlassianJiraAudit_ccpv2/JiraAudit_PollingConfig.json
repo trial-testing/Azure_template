@@ -9,7 +9,7 @@
         "dataType": "Jira_Audit_v2_CL",
         "dcrConfig": {
             "dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
-            "dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}",
+            "dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
         },
         "auth": {
             "type": "Basic",
