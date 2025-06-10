@@ -58,4 +58,3 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Test passed: $mssg"
