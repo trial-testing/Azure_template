@@ -54,7 +54,7 @@ jobs:
 
 
           if [ "$status" != "passed" ]; then
-            echo "❌ Test failed: $mssg"
+            echo "❌ Test Fail : $mssg"
             exit 1
           fi
 
