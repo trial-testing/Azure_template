@@ -57,4 +57,5 @@ jobs:
             echo "❌ Test Fail : $message"
             exit 1
           fi
-
+          
+          echo " $message"
