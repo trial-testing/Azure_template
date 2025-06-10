@@ -50,11 +50,11 @@ jobs:
             --data-binary "@$JSON_PAYLOAD_PATH")
 
           status=$(jq -r '.status' <<< "$response")
-          mssg=$(jq -r '.mssg' <<< "$response")
+          message=$(jq -r '.message' <<< "$response")
 
 
           if [ "$status" != "passed" ]; then
-            echo "❌ Test Fail : $mssg"
+            echo "❌ Test Fail : $message"
             exit 1
           fi
 
