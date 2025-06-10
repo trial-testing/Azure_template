@@ -1,4 +1,4 @@
-name: Send changed JSON files on PR
+name: Validation check for CCP data connectors
 
 on:
   pull_request:
