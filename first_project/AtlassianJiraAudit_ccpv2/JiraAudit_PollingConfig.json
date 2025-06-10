@@ -1,7 +1,7 @@
 {
     "name": "AtlassianJiraCCPPolling",
     "apiVersion": "2022-12-01-preview",
-    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "type": "Microsoft.Wrongs",
     "location": "{{location}}",
     "kind": "RestApiPoller",
     "properties": {
@@ -9,12 +9,10 @@
         "dataType": "Jira_Audit_v2_CL",
         "dcrConfig": {
             "dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
-            "dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}",
             "streamName": "Custom-Jira_Audit_v2_CL"
         },
         "auth": {
             "type": "Basic",
-            "UserName": "{{userid}}",
             "Password": "{{apikey}}"
         },
         "request": {
