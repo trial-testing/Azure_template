@@ -43,7 +43,12 @@ jobs:
 
           json_array="${json_array%,}]"
           echo "$json_array" > files_payload.json
+      
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
+          
+      - name: Debug subscription ID
+        run: echo "Subscription ID is ${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+
 
       - name: Azure Login using Federated Identity
         uses: azure/login@v1
