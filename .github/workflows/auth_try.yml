@@ -21,10 +21,11 @@ jobs:
       - name: Azure Login with OIDC
         uses: azure/login@v1
         with:
+          auth-type: oidc
           client-id: f7e8e76c-523c-4098-8290-094945634141
           tenant-id: 72f988bf-86f1-41af-91ab-2d7cd011db47
           subscription-id: 4383ac89-7cd1-48c1-8061-b0b3c5ccfd97
-          
+
 
       - name: Get changed JSON files and contents to send to API endpoint
         id: prepare_json_files
