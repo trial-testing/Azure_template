@@ -47,7 +47,8 @@ jobs:
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
           
       - name: Debug subscription ID
-        run: echo "Subscription ID is ${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+        run: echo "Subscription ID is ${{ secrets.AZURE_SUBSCRIPTION_ID }}  and check is ${{secrets.SEC}}"
+        
 
 
       - name: Azure Login using Federated Identity
