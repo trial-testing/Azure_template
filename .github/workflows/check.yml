@@ -1,4 +1,4 @@
-name: Validation check for CCP data connectors
+name: chec 
 
 on:
   pull_request:
