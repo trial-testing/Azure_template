@@ -46,7 +46,7 @@ jobs:
 
       - name: Send JSON files to API and check response
         env:
-          API_URL: https://valid1-e2akhdekg6a7a2ch.canadacentral-01.azurewebsites.net/
+          API_URL: https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/
         run: |
           echo "Sending JSON payload to API"
 
