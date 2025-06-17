@@ -49,42 +49,45 @@ jobs:
         id: prepare_json_files
         run: |
           echo "🔍 Finding changed JSON files..."
-          BASE="origin/${{ github.event.pull_request.base.ref }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
-          echo "Base: $BASE"
-          echo "Head: $HEAD"
+          # Determine base & head refs
+          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          echo "Base branch: $BASE_BRANCH"
+          echo "Head SHA: $HEAD_SHA"
 
-          # List all changed files
-          all_changed=$(git diff --name-only "$BASE" "$HEAD")
+          # Fetch the base branch so git diff works
+          git fetch origin $BASE_BRANCH
+
+          # List all changed files between base and head
+          all_changed=$(git diff --name-only origin/$BASE_BRANCH $HEAD_SHA)
           echo "🔁 All changed files:"
           echo "$all_changed"
 
-          # Filter for .json
+          # Filter .json files
           mapfile -t files < <(echo "$all_changed" | grep '\.json$' || true)
           echo "🧾 JSON files to process (${#files[@]}): ${files[*]:-<none>}"
 
+          # Build JSON array
           json_array="["
           for file in "${files[@]}"; do
             echo "📄 Checking file: $file"
-            if [ -f "$file" ]; then
-              if jq -e . "$file" > /dev/null 2>&1; then
-                content=$(jq -c . < "$file")
-                json_array+="{\"filename\":\"$file\",\"content\":$content},"
-              else
-                echo "❌ Invalid JSON in $file, skipping"
-              fi
+            if [ -f "$file" ] && jq -e . "$file" > /dev/null 2>&1; then
+              content=$(jq -c . < "$file")
+              json_array+="{\"filename\":\"$file\",\"content\":$content},"
             else
-              echo "⚠️ File not found on disk: $file"
+              echo "⚠️ Skipping invalid or missing JSON: $file"
             fi
           done
+          # Finalize array
           json_array="${json_array%,}]"
           echo "✅ Final JSON array:"
           echo "$json_array"
-          echo "$json_array" > files_payload.json
 
-          # Export path
+          # Save payload
+          echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
-          echo "✅ Payload saved to files_payload.json (size: $(wc -c < files_payload.json) bytes)"
+          echo "✅ Payload saved (size: $(wc -c < files_payload.json) bytes)"
+
 
       # 5. Send POST request with JSON payload to "/"
       - name: 🚀 Send POST request with JSON payload to root
