@@ -67,19 +67,30 @@ jobs:
       - name: 🚀 Send POST request with JSON payload to root
         run: |
           echo "🚀 POST $API_BASE/"
+          
+          # Debug: show the payload before sending
+          echo "📄 Payload to send:"
+          cat "$JSON_PAYLOAD_PATH"
+          echo
+          
+          # Perform the POST, capturing both body and status
           response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            --data-binary "@$JSON_PAYLOAD_PATH")
+            --data @"$JSON_PAYLOAD_PATH")
+          
           body=$(echo "$response" | head -n -1)
           status_code=$(echo "$response" | tail -n1)
+          
           echo "🌐 HTTP status: $status_code"
           echo "🌐 Response body:"
           echo "$body" | jq . || true
+
           if [ "$status_code" -ne 200 ]; then
             echo "❌ POST failed (HTTP $status_code)"
             exit 1
           fi
+
           result_status=$(jq -r '.status' <<< "$body")
           result_message=$(jq -r '.message' <<< "$body")
           if [ "$result_status" != "passed" ]; then
