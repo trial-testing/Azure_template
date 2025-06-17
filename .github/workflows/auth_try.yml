@@ -47,7 +47,7 @@ jobs:
 
 
 
-          
+
       # 4. Collect & inspect changed JSON files
       - name: 📁 Collect & inspect changed JSON files
         id: prepare_json_files
@@ -58,12 +58,12 @@ jobs:
           echo "Base branch: $BASE_BRANCH"
           echo "Head SHA: $HEAD_SHA"
 
-          # Checkout PR head (already done), now fetch & create local base branch
-          git fetch origin $BASE_BRANCH:$BASE_BRANCH
-          echo "✅ Fetched base branch locally as '$BASE_BRANCH'"
+          # Fetch the base branch into FETCH_HEAD
+          git fetch origin $BASE_BRANCH
+          echo "✅ Fetched origin/$BASE_BRANCH to FETCH_HEAD"
 
-          # List all changed files between base and head
-          all_changed=$(git diff --name-only $BASE_BRANCH $HEAD_SHA)
+          # List changed files between FETCH_HEAD (base) and HEAD_SHA
+          all_changed=$(git diff --name-only FETCH_HEAD $HEAD_SHA)
           echo "🔁 All changed files:"
           echo "$all_changed"
 
@@ -75,13 +75,14 @@ jobs:
           json_array="["
           for file in "${files[@]}"; do
             echo "📄 Checking file: $file"
-            if [ -f "$file" ] && jq -e . "$file" > /dev/null 2>&1; then
+            if [ -f "$file" ] && jq -e . "$file" > /dev/null; then
               content=$(jq -c . < "$file")
               json_array+="{\"filename\":\"$file\",\"content\":$content},"
             else
               echo "⚠️ Skipping invalid or missing JSON: $file"
             fi
           done
+
           # Finalize array
           json_array="${json_array%,}]"
           echo "✅ Final JSON array:"
