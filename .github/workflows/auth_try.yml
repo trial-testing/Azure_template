@@ -42,8 +42,8 @@ jobs:
       # 3. Send a simple GET request to verify connectivity
       - name: 📡 Send GET request to protected endpoint
         run: |
-          echo "🚀 GET $API_BASE/validate"
-          response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE/validate")
+          echo "🚀 GET $API_BASE/"
+          response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE/")
           echo "🔍 GET response:"
           echo "$response" | jq . || true
 
@@ -78,8 +78,8 @@ jobs:
       # 5. Send POST request with JSON payload
       - name: 🚀 Send POST request with JSON payload
         run: |
-          echo "🚀 POST $API_BASE/validate"
-          response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/validate" \
+          echo "🚀 POST $API_BASE/"
+          response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             --data-binary "@$JSON_PAYLOAD_PATH")
