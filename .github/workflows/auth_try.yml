@@ -44,22 +44,26 @@ jobs:
           response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE/")
           echo "🔍 GET response:"
           echo "$response" | jq . || true
-      # 4. Collect changed JSON files and build payload
+
+
+
+          
+      # 4. Collect & inspect changed JSON files
       - name: 📁 Collect & inspect changed JSON files
         id: prepare_json_files
         run: |
           echo "🔍 Finding changed JSON files..."
-          # Determine base & head refs
           BASE_BRANCH=${{ github.event.pull_request.base.ref }}
           HEAD_SHA=${{ github.event.pull_request.head.sha }}
           echo "Base branch: $BASE_BRANCH"
           echo "Head SHA: $HEAD_SHA"
 
-          # Fetch the base branch so git diff works
-          git fetch origin $BASE_BRANCH
+          # Checkout PR head (already done), now fetch & create local base branch
+          git fetch origin $BASE_BRANCH:$BASE_BRANCH
+          echo "✅ Fetched base branch locally as '$BASE_BRANCH'"
 
           # List all changed files between base and head
-          all_changed=$(git diff --name-only origin/$BASE_BRANCH $HEAD_SHA)
+          all_changed=$(git diff --name-only $BASE_BRANCH $HEAD_SHA)
           echo "🔁 All changed files:"
           echo "$all_changed"
 
