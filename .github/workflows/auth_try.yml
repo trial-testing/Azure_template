@@ -85,24 +85,23 @@
 #           fi
 
 #           echo "✅ $message"
-
-name: Validation check for CCP data connectors
+name: 🔐 OIDC-Protected JSON Validation via Azure
 
 on:
   pull_request:
     types: [opened, synchronize]
 
+permissions:  # ✅ Required to get OIDC token
+  id-token: write
+  contents: read
+
 jobs:
-  send-json-files:
+  validate-json-and-auth:
     runs-on: ubuntu-latest
 
-    permissions:
-      id-token: write     # 🔐 Needed to request OIDC token
-      contents: read      # 📁 Needed to fetch files from repo
-
     env:
-      API_URL:  https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/ # 🔁 Replace with actual endpoint
-      CLIENT_ID: "da7fd62a-590e-4e7a-8525-55ea01ffb1ac" # App Registration's client ID
+      API_URL: https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/  # 🔁 Replace with actual endpoint
+      CLIENT_ID: "da7fd62a-590e-4e7a-8525-55ea01ffb1ac"  # App Registration Client ID
 
     steps:
       - name: 🔄 Checkout PR Code
@@ -110,7 +109,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 📁 Get Changed JSON Files
+      - name: 📁 Collect Changed JSON Files
         id: prepare_json_files
         run: |
           echo "🔍 Finding changed JSON files..."
@@ -119,21 +118,21 @@ jobs:
           HEAD="${{ github.event.pull_request.head.sha }}"
 
           echo "Base ref: $BASE"
-          echo "Head ref: $HEAD"
+          echo "Head SHA: $HEAD"
 
           mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
 
-          echo "🔍 Found ${#files[@]} JSON files changed."
+          echo "🧾 Found ${#files[@]} JSON files changed."
 
           json_array="["
           for file in "${files[@]}"; do
-            echo "📄 Processing file: $file"
+            echo "📄 Checking $file"
             if [ -f "$file" ]; then
               if jq -e . "$file" > /dev/null 2>&1; then
                 content=$(jq -c . < "$file")
                 json_array+="{\"filename\": \"${file}\", \"content\": $content},"
               else
-                echo "❌ Invalid JSON in file: $file"
+                echo "❌ Invalid JSON: $file"
                 exit 1
               fi
             fi
@@ -141,8 +140,8 @@ jobs:
 
           json_array="${json_array%,}]"
           echo "$json_array" > files_payload.json
+          echo "✅ Payload prepared: files_payload.json"
 
-          echo "✅ JSON payload file created at: files_payload.json"
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
       - name: 🔐 Request OIDC Token from GitHub
@@ -153,15 +152,13 @@ jobs:
             console.log("🌐 Getting OIDC token with audience: api://" + process.env.CLIENT_ID);
             const idToken = await core.getIDToken("api://" + process.env.CLIENT_ID);
             core.setOutput("token", idToken);
-            console.log("✅ OIDC token acquired and stored as output.");
+            console.log("✅ OIDC token acquired.");
 
-      - name: 🔄 Debug OIDC Token Info (short)
+      - name: 🧪 Debug OIDC Token (first 50 chars)
         run: |
-          echo "🔍 Showing first part of token for debug:"
-          token="${{ steps.oidc.outputs.token }}"
-          echo "${token:0:50}..."  # Print first 50 chars (do not leak full token)
+          echo "🔑 Partial token: ${{ steps.oidc.outputs.token }}" | cut -c1-50
 
-      - name: 🚀 Send JSON Payload to Protected API
+      - name: 🚀 Send Payload to Protected API
         run: |
           echo "📤 Sending POST to $API_URL"
           response=$(curl -s -w "\n%{http_code}" -X POST "$API_URL" \
@@ -172,20 +169,15 @@ jobs:
           body=$(echo "$response" | head -n -1)
           status_code=$(echo "$response" | tail -n1)
 
-          echo "🔁 Response status code: $status_code"
-          echo "🔁 Response body: $body"
-
-          if [ "$status_code" -ne 200 ]; then
-            echo "❌ Request failed with status $status_code"
-            exit 1
-          fi
+          echo "🌐 Status code: $status_code"
+          echo "🌐 Body: $body"
 
           result_status=$(jq -r '.status' <<< "$body")
           result_message=$(jq -r '.message' <<< "$body")
 
-          if [ "$result_status" != "passed" ]; then
+          if [ "$status_code" -ne 200 ] || [ "$result_status" != "passed" ]; then
             echo "❌ Validation failed: $result_message"
             exit 1
           fi
 
-          echo "✅ Validation succeeded: $result_message"
+          echo "✅ Validation passed: $result_message"
