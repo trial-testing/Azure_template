@@ -1,0 +1,25 @@
+name: Get OIDC Token
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+
+jobs:
+  get-oidc-token:
+    runs-on: ubuntu-latest
+    env:
+      CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    steps:
+      - name: Fetch OIDC ID token
+        id: fetch_token
+        uses: actions/github-script@v6
+        with:
+          script: |
+            console.log(`🌐 Requesting OIDC token for audience api://${process.env.CLIENT_ID}`);
+            const token = await core.getIDToken(`api://${process.env.CLIENT_ID}`);
+            console.log("✅ OIDC token acquired:");
+            console.log(token);
