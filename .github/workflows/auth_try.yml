@@ -1,4 +1,4 @@
-name: Validation check for CCP data connectors
+name: Validation auth
 
 permissions:
   id-token: write
