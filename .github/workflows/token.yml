@@ -23,3 +23,9 @@ jobs:
             const token = await core.getIDToken(`api://${process.env.CLIENT_ID}`);
             console.log("✅ OIDC token acquired:");
             console.log(token);
+
+      - name: 🧪 Show token preview
+        run: |
+            token="${{ steps.oidc.outputs.token }}"
+            echo "Token starts with: ${token:0:10}..."
+
