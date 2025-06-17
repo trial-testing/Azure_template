@@ -44,44 +44,63 @@ jobs:
           response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE/")
           echo "🔍 GET response:"
           echo "$response" | jq . || true
-
       # 4. Collect changed JSON files and build payload
-      - name: 📁 Collect changed JSON files
+      - name: 📁 Collect & inspect changed JSON files
         id: prepare_json_files
         run: |
+          echo "🔍 Finding changed JSON files..."
           BASE="origin/${{ github.event.pull_request.base.ref }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
-          mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
+          echo "Base: $BASE"
+          echo "Head: $HEAD"
+
+          # List all changed files
+          all_changed=$(git diff --name-only "$BASE" "$HEAD")
+          echo "🔁 All changed files:"
+          echo "$all_changed"
+
+          # Filter for .json
+          mapfile -t files < <(echo "$all_changed" | grep '\.json$' || true)
+          echo "🧾 JSON files to process (${#files[@]}): ${files[*]:-<none>}"
+
           json_array="["
           for file in "${files[@]}"; do
-            if [ -f "$file" ] && jq -e . "$file" > /dev/null; then
-              content=$(jq -c . < "$file")
-              json_array+="{\"filename\":\"$file\",\"content\":$content},"
+            echo "📄 Checking file: $file"
+            if [ -f "$file" ]; then
+              if jq -e . "$file" > /dev/null 2>&1; then
+                content=$(jq -c . < "$file")
+                json_array+="{\"filename\":\"$file\",\"content\":$content},"
+              else
+                echo "❌ Invalid JSON in $file, skipping"
+              fi
+            else
+              echo "⚠️ File not found on disk: $file"
             fi
           done
           json_array="${json_array%,}]"
+          echo "✅ Final JSON array:"
+          echo "$json_array"
           echo "$json_array" > files_payload.json
+
+          # Export path
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
+          echo "✅ Payload saved to files_payload.json (size: $(wc -c < files_payload.json) bytes)"
 
       # 5. Send POST request with JSON payload to "/"
       - name: 🚀 Send POST request with JSON payload to root
         run: |
           echo "🚀 POST $API_BASE/"
-          
-          # Debug: show the payload before sending
-          echo "📄 Payload to send:"
-          cat "$JSON_PAYLOAD_PATH"
+          echo "📄 Payload contents:"
+          cat "$JSON_PAYLOAD_PATH" || { echo "❌ files_payload.json not found"; exit 1; }
           echo
-          
-          # Perform the POST, capturing both body and status
+
           response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             --data @"$JSON_PAYLOAD_PATH")
-          
+
           body=$(echo "$response" | head -n -1)
           status_code=$(echo "$response" | tail -n1)
-          
           echo "🌐 HTTP status: $status_code"
           echo "🌐 Response body:"
           echo "$body" | jq . || true
@@ -90,7 +109,6 @@ jobs:
             echo "❌ POST failed (HTTP $status_code)"
             exit 1
           fi
-
           result_status=$(jq -r '.status' <<< "$body")
           result_message=$(jq -r '.message' <<< "$body")
           if [ "$result_status" != "passed" ]; then
