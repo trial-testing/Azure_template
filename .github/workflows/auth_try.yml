@@ -86,7 +86,6 @@
 
 #           echo "✅ $message"
 
-
 name: Validation check for CCP data connectors
 
 on:
@@ -98,37 +97,43 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      id-token: write     # ✅ Required for OIDC token
-      contents: read      # ✅ Required for repo checkout
+      id-token: write     # 🔐 Needed to request OIDC token
+      contents: read      # 📁 Needed to fetch files from repo
 
     env:
-      API_URL: https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/  
-      CLIENT_ID: "da7fd62a-590e-4e7a-8525-55ea01ffb1ac" 
+      API_URL:  https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/ # 🔁 Replace with actual endpoint
+      CLIENT_ID: "da7fd62a-590e-4e7a-8525-55ea01ffb1ac" # App Registration's client ID
 
     steps:
-      - name: Checkout PR code
+      - name: 🔄 Checkout PR Code
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      - name: Get changed JSON files and contents
+      - name: 📁 Get Changed JSON Files
         id: prepare_json_files
         run: |
-          echo "Collecting changed JSON files..."
+          echo "🔍 Finding changed JSON files..."
 
           BASE="origin/${{ github.event.pull_request.base.ref }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
 
+          echo "Base ref: $BASE"
+          echo "Head ref: $HEAD"
+
           mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
+
+          echo "🔍 Found ${#files[@]} JSON files changed."
 
           json_array="["
           for file in "${files[@]}"; do
+            echo "📄 Processing file: $file"
             if [ -f "$file" ]; then
               if jq -e . "$file" > /dev/null 2>&1; then
                 content=$(jq -c . < "$file")
                 json_array+="{\"filename\": \"${file}\", \"content\": $content},"
               else
-                echo "❌ Invalid JSON structure in file: $file"
+                echo "❌ Invalid JSON in file: $file"
                 exit 1
               fi
             fi
@@ -136,33 +141,51 @@ jobs:
 
           json_array="${json_array%,}]"
           echo "$json_array" > files_payload.json
+
+          echo "✅ JSON payload file created at: files_payload.json"
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
-      - name: Request OIDC token from GitHub
-        id: get_oidc_token
-        run: |
-          echo "Requesting OIDC token..."
-          response=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
+      - name: 🔐 Request OIDC Token from GitHub
+        id: oidc
+        uses: actions/github-script@v6
+        with:
+          script: |
+            console.log("🌐 Getting OIDC token with audience: api://" + process.env.CLIENT_ID);
+            const idToken = await core.getIDToken("api://" + process.env.CLIENT_ID);
+            core.setOutput("token", idToken);
+            console.log("✅ OIDC token acquired and stored as output.");
 
-          token=$(echo "$response" | jq -r '.value')
-          echo "ACCESS_TOKEN=$token" >> $GITHUB_ENV
-
-      - name: Send JSON payload to protected API
+      - name: 🔄 Debug OIDC Token Info (short)
         run: |
-          echo "Sending request to $API_URL"
-          response=$(curl -s -X POST "$API_URL" \
-            -H "Authorization: Bearer $ACCESS_TOKEN" \
+          echo "🔍 Showing first part of token for debug:"
+          token="${{ steps.oidc.outputs.token }}"
+          echo "${token:0:50}..."  # Print first 50 chars (do not leak full token)
+
+      - name: 🚀 Send JSON Payload to Protected API
+        run: |
+          echo "📤 Sending POST to $API_URL"
+          response=$(curl -s -w "\n%{http_code}" -X POST "$API_URL" \
+            -H "Authorization: Bearer ${{ steps.oidc.outputs.token }}" \
             -H "Content-Type: application/json" \
             --data-binary "@$JSON_PAYLOAD_PATH")
 
-          echo "Response: $response"
-          status=$(jq -r '.status' <<< "$response")
-          message=$(jq -r '.message' <<< "$response")
+          body=$(echo "$response" | head -n -1)
+          status_code=$(echo "$response" | tail -n1)
 
-          if [ "$status" != "passed" ]; then
-            echo "❌ Validation failed: $message"
+          echo "🔁 Response status code: $status_code"
+          echo "🔁 Response body: $body"
+
+          if [ "$status_code" -ne 200 ]; then
+            echo "❌ Request failed with status $status_code"
             exit 1
           fi
 
-          echo "✅ Success: $message"
+          result_status=$(jq -r '.status' <<< "$body")
+          result_message=$(jq -r '.message' <<< "$body")
+
+          if [ "$result_status" != "passed" ]; then
+            echo "❌ Validation failed: $result_message"
+            exit 1
+          fi
+
+          echo "✅ Validation succeeded: $result_message"
