@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      API_URL: https://<your-app-name>.azurewebsites.net/validate  # 🔁 replace with your GET endpoint
+      API_URL: https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/ # 🔁 replace with your GET endpoint
 
     steps:
       - name: 🔐 Request OIDC token from GitHub
