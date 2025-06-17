@@ -22,7 +22,7 @@ jobs:
         with:
           fetch-depth: 0
 
-    steps:
+
       - name: 🔐 Request OIDC token from GitHub
         id: fetch_token
         run: |
@@ -79,9 +79,8 @@ jobs:
 
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
-    steps:
+
       - name: 🔐 Request OIDC token from GitHub
-        id: fetch_token
         run: |
           echo "🌐 Requesting OIDC token..."
           raw=$(curl -s \
@@ -104,7 +103,7 @@ jobs:
 
 
       - name: 🔐 Request OIDC token from GitHub
-        id: fetch_token
+
         run: |
           echo "🌐 Requesting OIDC token..."
           raw=$(curl -s \
