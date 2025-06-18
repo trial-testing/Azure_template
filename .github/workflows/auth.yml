@@ -88,12 +88,16 @@ jobs:
                 -H "Content-Type: application/json" \
                 --data-binary "@$JSON_PAYLOAD_PATH")
 
-            message=$(jq -r '.message' <<< "$response")
+            result_status=$(echo "$response" | jq -r '.status // empty')
+            message=$(echo "$response" | jq -r '.message // "No message provided"')
 
-            echo result_status=$(echo "$body" | jq -r '.status // empty')
-            echo $result_status
+            # Print for debugging
+            echo "🧪 result_status: $result_status"
+            echo -e "📩 message:\n$message"
+
+            # Handle result
             if [ "$result_status" != "passed" ]; then
-                echo -e "❌ Validation failed: $message"
+                echo -e "❌ Validation failed:\n$message"
                 exit 1
             fi
 
