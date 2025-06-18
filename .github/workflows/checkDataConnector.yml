@@ -1,4 +1,4 @@
-name: pull_request_target
+name: Valid on: pull_request_target
 
 on:
   pull_request_target:
@@ -19,9 +19,18 @@ jobs:
         id: prepare_json_files
         run: |
           echo "Collecting changed JSON files..."
-          BASE="origin/${{ github.event.pull_request.base.ref }}"
+          BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
+
           mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
+          echo "Changed JSON files: ${files[@]}"
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No JSON files changed in this PR."
+            echo "JSON_PAYLOAD_PATH=empty" >> $GITHUB_ENV
+            exit 0
+          fi
+
           json_array="["
           for file in "${files[@]}"; do
             if [ -f "$file" ]; then
@@ -39,6 +48,7 @@ jobs:
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
       - name: Send JSON files to API and check response
+        if: env.JSON_PAYLOAD_PATH != 'empty'
         env:
           API_URL: https://valid1-e2akhdekg6a7a2ch.canadacentral-01.azurewebsites.net/
         run: |
