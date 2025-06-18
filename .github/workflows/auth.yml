@@ -87,14 +87,8 @@ jobs:
                 -H "Content-Type: application/json" \
                 --data-binary "@$JSON_PAYLOAD_PATH")
 
-            message=$(jq -r '.message' <<< "$response")
-
-            echo -e "❌ Test Fail:\n$message"
-
-
-            # Parse JSON safely
-            result_status=$(echo "$body" | jq -r '.status // empty')
-            result_message=$(echo "$body" | jq -r '.message // "No message provided"')
+            status=$(echo "$body" | jq -r '.status // empty')
+            message=$(echo "$body" | jq -r '.message // "No message provided"')
 
             if [ "$result_status" != "passed" ]; then
 
