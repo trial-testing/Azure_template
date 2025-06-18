@@ -86,13 +86,15 @@ jobs:
           cat "$JSON_PAYLOAD_PATH" || { echo "❌ files_payload.json not found"; exit 1; }
           echo
 
+          
           response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
-            --data @"$JSON_PAYLOAD_PATH")
+            --data-binary "@$JSON_PAYLOAD_PATH")
 
           body=$(echo "$response" | head -n -1)
           status_code=$(echo "$response" | tail -n1)
+
           echo "🌐 HTTP status: $status_code"
           echo "🌐 Response body:"
           echo "$body" | jq . || true
@@ -101,10 +103,13 @@ jobs:
             echo "❌ POST failed (HTTP $status_code)"
             exit 1
           fi
+
           result_status=$(jq -r '.status' <<< "$body")
           result_message=$(jq -r '.message' <<< "$body")
+
           if [ "$result_status" != "passed" ]; then
             echo "❌ Validation failed: $result_message"
             exit 1
           fi
+
           echo "✅ Validation passed: $result_message"
