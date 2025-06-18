@@ -19,7 +19,7 @@
         },
         "request": {
             "apiEndpoint": "https://{{jiraorganizationurl}}/rest/api/3/auditing/record",
-            "httpMethod": "GET",
+            "httpMethod": "GE",
             "retryCount": 3,
             "timeoutInSeconds": 60,
             "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
