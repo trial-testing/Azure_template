@@ -11,7 +11,7 @@ permissions:
 
 env:
   CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-  API_BASE: https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net
+  API_BASE: ${{ secrets.SENTINEL_CONTENT_API_URL }}
 
 jobs:
   pr-validate:
@@ -48,50 +48,47 @@ jobs:
 
 
 
-      # 4. Collect & inspect changed JSON files
+      # 4. Collect & inspect changed JSON files (fixed)
       - name: 📁 Collect & inspect changed JSON files
         id: prepare_json_files
         run: |
           echo "🔍 Finding changed JSON files..."
           BASE_BRANCH=${{ github.event.pull_request.base.ref }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
           echo "Base branch: $BASE_BRANCH"
-          echo "Head SHA: $HEAD_SHA"
 
-          # Fetch the base branch into FETCH_HEAD
+          # 1) Fetch the latest main so origin/main is up to date
           git fetch origin $BASE_BRANCH
-          echo "✅ Fetched origin/$BASE_BRANCH to FETCH_HEAD"
+          echo "✅ Fetched origin/$BASE_BRANCH"
 
-          # List changed files between FETCH_HEAD (base) and HEAD_SHA
-          all_changed=$(git diff --name-only FETCH_HEAD $HEAD_SHA)
-          echo "🔁 All changed files:"
+          # 2) Diff using three-dot syntax against HEAD
+          all_changed=$(git diff --name-only origin/$BASE_BRANCH...HEAD)
+          echo "🔁 All changed files in PR:"
           echo "$all_changed"
 
-          # Filter .json files
+          # 3) Filter for .json
           mapfile -t files < <(echo "$all_changed" | grep '\.json$' || true)
           echo "🧾 JSON files to process (${#files[@]}): ${files[*]:-<none>}"
 
-          # Build JSON array
+          # 4) Build the JSON array
           json_array="["
           for file in "${files[@]}"; do
-            echo "📄 Checking file: $file"
+            echo "📄 Checking $file"
             if [ -f "$file" ] && jq -e . "$file" > /dev/null; then
               content=$(jq -c . < "$file")
               json_array+="{\"filename\":\"$file\",\"content\":$content},"
             else
-              echo "⚠️ Skipping invalid or missing JSON: $file"
+              echo "⚠️ Skipping invalid/missing JSON: $file"
             fi
           done
-
-          # Finalize array
           json_array="${json_array%,}]"
+
+          # 5) Debug and save
           echo "✅ Final JSON array:"
           echo "$json_array"
-
-          # Save payload
           echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
-          echo "✅ Payload saved (size: $(wc -c < files_payload.json) bytes)"
+          echo "✅ Payload size: $(wc -c < files_payload.json) bytes"
+
 
 
       # 5. Send POST request with JSON payload to "/"
