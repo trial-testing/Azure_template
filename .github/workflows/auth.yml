@@ -79,31 +79,13 @@ jobs:
 
 
       # 5. Send POST request with JSON payload to "/"
-      - name: 🚀 Send POST request with JSON payload to root
+      - name: Send POST request with JSON payload 
         run: |
 
-            echo "🚀 POST $API_BASE/"
-            echo "📄 Payload contents:"
-            cat "$JSON_PAYLOAD_PATH" || { echo "❌ files_payload.json not found"; exit 1; }
-
-            # Send POST and capture both body and status code
             response=$(curl -s -X POST "$API_BASE/" \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "Content-Type: application/json" \
                 --data-binary "@$JSON_PAYLOAD_PATH")
-
-            # # Split response into body and status code
-            # body=$(echo "$response" | head -n -1)
-            # status_code=$(echo "$response" | tail -n1)
-
-            # echo "🌐 HTTP status: $status_code"
-            # echo "🌐 Response body:"
-            # echo "$body" | jq . || echo "⚠️ Response is not valid JSON"
-
-            # # Check HTTP status
-            # if [ "$status_code" -ne 200 ]; then
-            # echo "❌ POST failed (HTTP $status_code)"
-            # fi
 
             message=$(jq -r '.message' <<< "$response")
 
@@ -115,9 +97,10 @@ jobs:
             result_message=$(echo "$body" | jq -r '.message // "No message provided"')
 
             if [ "$result_status" != "passed" ]; then
-            echo "❌ Validation failed: $result_message"
+
+            echo "❌ Validation failed: $message"
             exit 1
             fi
 
-            echo "✅ Validation passed: $result_message"
+            echo "✅ Validation passed: $message"
 
