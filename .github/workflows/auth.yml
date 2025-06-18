@@ -81,22 +81,39 @@ jobs:
       # 5. Send POST request with JSON payload to "/"
       - name: 🚀 Send POST request with JSON payload to root
         run: |
-          echo "🚀 POST $API_BASE/"
-          echo "📄 Payload contents:"
+        
+            echo "🚀 POST $API_BASE/"
+            echo "📄 Payload contents:"
+            cat "$JSON_PAYLOAD_PATH" || { echo "❌ files_payload.json not found"; exit 1; }
 
-          echo "Sending JSON payload to API"
-
-          response=$(curl -s -X POST "$API_URL" \
+            # Send POST and capture both body and status code
+            response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/" \
             -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" \
             --data-binary "@$JSON_PAYLOAD_PATH")
 
-          status=$(jq -r '.status' <<< "$response")
-          message=$(jq -r '.message' <<< "$response")
+            # Split response into body and status code
+            body=$(echo "$response" | head -n -1)
+            status_code=$(echo "$response" | tail -n1)
 
-          if [ "$status" != "passed" ]; then
-            echo "❌ Test Fail : $message"
+            echo "🌐 HTTP status: $status_code"
+            echo "🌐 Response body:"
+            echo "$body" | jq . || echo "⚠️ Response is not valid JSON"
+
+            # Check HTTP status
+            if [ "$status_code" -ne 200 ]; then
+            echo "❌ POST failed (HTTP $status_code)"
             exit 1
-          fi
+            fi
 
-          echo "✅ $message"
+            # Parse JSON safely
+            result_status=$(echo "$body" | jq -r '.status // empty')
+            result_message=$(echo "$body" | jq -r '.message // "No message provided"')
+
+            if [ "$result_status" != "passed" ]; then
+            echo "❌ Validation failed: $result_message"
+            exit 1
+            fi
+
+            echo "✅ Validation passed: $result_message"
+
