@@ -91,7 +91,7 @@ jobs:
             message=$(jq -r '.message' <<< "$response")
 
             echo result_status=$(echo "$body" | jq -r '.status // empty')
-
+            echo $resukt_stats
             if [ "$result_status" != "passed" ]; then
                 echo -e "❌ Validation failed: $message"
                 exit 1
