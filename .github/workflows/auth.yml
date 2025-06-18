@@ -91,12 +91,6 @@ jobs:
             -H "Content-Type: application/json" \
             --data-binary "@$JSON_PAYLOAD_PATH")
 
-          body=$(echo "$response" | head -n -1)
-          status_code=$(echo "$response" | tail -n1)
-          echo "🌐 HTTP status: $status_code"
-          echo "🌐 Response body:"
-          echo "$body" | jq . || true
-
           status=$(jq -r '.status' <<< "$response")
           message=$(jq -r '.message' <<< "$response")
 
