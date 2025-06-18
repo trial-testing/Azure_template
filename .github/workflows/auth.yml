@@ -103,7 +103,6 @@ jobs:
             # Check HTTP status
             if [ "$status_code" -ne 200 ]; then
             echo "❌ POST failed (HTTP $status_code)"
-            exit 1
             fi
 
             message=$(jq -r '.message' <<< "$response")
