@@ -81,7 +81,7 @@ jobs:
       # 5. Send POST request with JSON payload to "/"
       - name: 🚀 Send POST request with JSON payload to root
         run: |
-        
+
             echo "🚀 POST $API_BASE/"
             echo "📄 Payload contents:"
             cat "$JSON_PAYLOAD_PATH" || { echo "❌ files_payload.json not found"; exit 1; }
@@ -105,6 +105,11 @@ jobs:
             echo "❌ POST failed (HTTP $status_code)"
             exit 1
             fi
+
+            message=$(jq -r '.message' <<< "$response")
+
+            echo -e "❌ Test Fail:\n$message"
+
 
             # Parse JSON safely
             result_status=$(echo "$body" | jq -r '.status // empty')
