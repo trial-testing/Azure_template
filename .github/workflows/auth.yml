@@ -87,23 +87,23 @@ jobs:
             cat "$JSON_PAYLOAD_PATH" || { echo "❌ files_payload.json not found"; exit 1; }
 
             # Send POST and capture both body and status code
-            response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$JSON_PAYLOAD_PATH")
+            response=$(curl -s -X POST "$API_BASE/" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                --data-binary "@$JSON_PAYLOAD_PATH")
 
-            # Split response into body and status code
-            body=$(echo "$response" | head -n -1)
-            status_code=$(echo "$response" | tail -n1)
+            # # Split response into body and status code
+            # body=$(echo "$response" | head -n -1)
+            # status_code=$(echo "$response" | tail -n1)
 
-            echo "🌐 HTTP status: $status_code"
-            echo "🌐 Response body:"
-            echo "$body" | jq . || echo "⚠️ Response is not valid JSON"
+            # echo "🌐 HTTP status: $status_code"
+            # echo "🌐 Response body:"
+            # echo "$body" | jq . || echo "⚠️ Response is not valid JSON"
 
-            # Check HTTP status
-            if [ "$status_code" -ne 200 ]; then
-            echo "❌ POST failed (HTTP $status_code)"
-            fi
+            # # Check HTTP status
+            # if [ "$status_code" -ne 200 ]; then
+            # echo "❌ POST failed (HTTP $status_code)"
+            # fi
 
             message=$(jq -r '.message' <<< "$response")
 
