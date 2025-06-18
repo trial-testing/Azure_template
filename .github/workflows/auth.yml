@@ -1,5 +1,5 @@
 # .github/workflows/pr-validate.yml
-name: PR Validation via OIDC 
+name: PR Validation via OIDC !!!!!!!!!!!!!!!!!!!!!
 
 on:
   pull_request_target:
@@ -86,7 +86,7 @@ jobs:
 
           echo "Sending JSON payload to API"
 
-          response=$(curl -s -X POST "$API_URL" \\
+          response=$(curl -s -X POST "$API_URL" \
             -H "Authorization: Bearer $TOKEN"
             -H "Content-Type: application/json" \
             --data-binary "@$JSON_PAYLOAD_PATH")

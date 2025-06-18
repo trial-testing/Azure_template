@@ -1,65 +1,65 @@
-name: pull_request_target
+# name: pull_request_target
 
-on:
-  pull_request_target:
-    types: [opened, synchronize]
+# on:
+#   pull_request_target:
+#     types: [opened, synchronize]
 
-jobs:
-  send-json-files:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout PR code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
+# jobs:
+#   send-json-files:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout PR code
+#         uses: actions/checkout@v3
+#         with:
+#           fetch-depth: 0
+#           ref: ${{ github.event.pull_request.head.ref }}
+#           repository: ${{ github.event.pull_request.head.repo.full_name }}
 
-      - name: Get changed JSON files and contents to send to API endpoint
-        id: prepare_json_files
-        run: |
-          echo "Collecting changed JSON files..."
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
+#       - name: Get changed JSON files and contents to send to API endpoint
+#         id: prepare_json_files
+#         run: |
+#           echo "Collecting changed JSON files..."
+#           BASE="${{ github.event.pull_request.base.sha }}"
+#           HEAD="${{ github.event.pull_request.head.sha }}"
 
-          mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
-          echo "Changed JSON files: ${files[@]}"
+#           mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
+#           echo "Changed JSON files: ${files[@]}"
 
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No JSON files changed in this PR."
-            echo "JSON_PAYLOAD_PATH=empty" >> $GITHUB_ENV
-            exit 0
-          fi
+#           if [ ${#files[@]} -eq 0 ]; then
+#             echo "No JSON files changed in this PR."
+#             echo "JSON_PAYLOAD_PATH=empty" >> $GITHUB_ENV
+#             exit 0
+#           fi
 
-          json_array="["
-          for file in "${files[@]}"; do
-            if [ -f "$file" ]; then
-              if jq -e . "$file" > /dev/null 2>&1; then
-                content=$(jq -c . < "$file")
-                json_array+="{\"filename\": \"${file}\", \"content\": $content},"
-              else
-                echo "❌ Invalid JSON structure in file: $file"
-                exit 1
-              fi
-            fi
-          done
-          json_array="${json_array%,}]"
-          echo "$json_array" > files_payload.json
-          echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
+#           json_array="["
+#           for file in "${files[@]}"; do
+#             if [ -f "$file" ]; then
+#               if jq -e . "$file" > /dev/null 2>&1; then
+#                 content=$(jq -c . < "$file")
+#                 json_array+="{\"filename\": \"${file}\", \"content\": $content},"
+#               else
+#                 echo "❌ Invalid JSON structure in file: $file"
+#                 exit 1
+#               fi
+#             fi
+#           done
+#           json_array="${json_array%,}]"
+#           echo "$json_array" > files_payload.json
+#           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
-      - name: Send JSON files to API and check response
-        if: env.JSON_PAYLOAD_PATH != 'empty'
-        env:
-          API_URL: https://valid1-e2akhdekg6a7a2ch.canadacentral-01.azurewebsites.net/
-        run: |
-          echo "Sending JSON payload to API"
-          response=$(curl -s -X POST "$API_URL" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$JSON_PAYLOAD_PATH")
-          status=$(jq -r '.status' <<< "$response")
-          message=$(jq -r '.message' <<< "$response")
-          if [ "$status" != "passed" ]; then
-            echo "❌ Test Fail : $message"
-            exit 1
-          fi
-          echo "✅ $message"
+#       - name: Send JSON files to API and check response
+#         if: env.JSON_PAYLOAD_PATH != 'empty'
+#         env:
+#           API_URL: https://valid1-e2akhdekg6a7a2ch.canadacentral-01.azurewebsites.net/
+#         run: |
+#           echo "Sending JSON payload to API"
+#           response=$(curl -s -X POST "$API_URL" \
+#             -H "Content-Type: application/json" \
+#             --data-binary "@$JSON_PAYLOAD_PATH")
+#           status=$(jq -r '.status' <<< "$response")
+#           message=$(jq -r '.message' <<< "$response")
+#           if [ "$status" != "passed" ]; then
+#             echo "❌ Test Fail : $message"
+#             exit 1
+#           fi
+#           echo "✅ $message"
