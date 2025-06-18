@@ -29,48 +29,41 @@ jobs:
           token=$(echo "$raw" | jq -r '.value')
           echo "TOKEN=$token" >> $GITHUB_ENV
 
-      # 2. Checkout the PR head at the exact commit
-      - name: 🔄 Checkout PR head at exact commit
+      - name: 🔄 Checkout PR HEAD at exact commit
         uses: actions/checkout@v3
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      # 3. Collect & inspect changed JSON files (fixed)
-      - name: 📁 Collect & inspect changed JSON files
-        id: prepare_json_files
+      - name: 📁 Collect changed JSON files
         run: |
           echo "🔍 Finding changed JSON files..."
-          BASE_BRANCH=${{ github.event.pull_request.base.ref }}
-          echo "Base branch: $BASE_BRANCH"
+          BASE=${{ github.event.pull_request.base.ref }}
 
-          git fetch origin $BASE_BRANCH
-          echo "✅ Fetched origin/$BASE_BRANCH"
+          git fetch origin $BASE
+          echo "✅ Fetched origin/$BASE"
 
-          all_changed=$(git diff --name-only origin/$BASE_BRANCH...HEAD)
-          echo "🔁 All changed files in PR:"
-          echo "$all_changed"
+          echo "🔁 Git diff from origin/$BASE to HEAD:"
+          git diff --name-only origin/$BASE...HEAD
 
-          mapfile -t files < <(echo "$all_changed" | grep '\.json$' || true)
+          mapfile -t files < <(git diff --name-only origin/$BASE...HEAD | grep '\.json$' || true)
+
           echo "🧾 JSON files to process (${#files[@]}): ${files[*]:-<none>}"
 
           json_array="["
           for file in "${files[@]}"; do
-            echo "📄 Checking $file"
-            if [ -f "$file" ] && jq -e . "$file" > /dev/null; then
+            if [ -f "$file" ]; then
               content=$(jq -c . < "$file")
               json_array+="{\"filename\":\"$file\",\"content\":$content},"
-            else
-              echo "⚠️ Skipping invalid/missing JSON: $file"
             fi
           done
           json_array="${json_array%,}]"
-          echo "✅ Final JSON array:"
-          echo "$json_array"
           echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
-          echo "✅ Payload size: $(wc -c < files_payload.json) bytes"
+          echo "✅ Final JSON array:"
+          cat files_payload.json
+
 
 
       # 3. Send a simple GET request to "/"
