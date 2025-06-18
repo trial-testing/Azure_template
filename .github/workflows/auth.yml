@@ -82,7 +82,7 @@ jobs:
       - name: Send POST request with JSON payload 
         run: |
             echo "Sending JSON payload to API"
-            
+
             response=$(curl -s -X POST "$API_BASE/" \
                 -H "Authorization: Bearer $TOKEN" \
                 -H "Content-Type: application/json" \
@@ -93,8 +93,8 @@ jobs:
             result_status=$(echo "$body" | jq -r '.status // empty')
 
             if [ "$result_status" != "passed" ]; then
-            echo -e "❌ Validation failed: $message"
-            exit 1
+                echo -e "❌ Validation failed: $message"
+                exit 1
             fi
 
             echo "✅ Validation passed: $message"
