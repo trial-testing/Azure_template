@@ -29,26 +29,15 @@ jobs:
           token=$(echo "$raw" | jq -r '.value')
           echo "TOKEN=$token" >> $GITHUB_ENV
 
-      # 2. Checkout the PR head (untrusted code)
-      - name: 🔄 Checkout PR head
+      # 2. Checkout the PR head at the exact commit
+      - name: 🔄 Checkout PR head at exact commit
         uses: actions/checkout@v3
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      # 3. Send a simple GET request to "/"
-      - name: 📡 Send GET request to protected root endpoint
-        run: |
-          echo "🚀 GET $API_BASE/"
-          response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE/")
-          echo "🔍 GET response:"
-          echo "$response" | jq . || true
-
-
-
-
-      # 4. Collect & inspect changed JSON files (fixed)
+      # 3. Collect & inspect changed JSON files (fixed)
       - name: 📁 Collect & inspect changed JSON files
         id: prepare_json_files
         run: |
@@ -56,20 +45,16 @@ jobs:
           BASE_BRANCH=${{ github.event.pull_request.base.ref }}
           echo "Base branch: $BASE_BRANCH"
 
-          # 1) Fetch the latest main so origin/main is up to date
           git fetch origin $BASE_BRANCH
           echo "✅ Fetched origin/$BASE_BRANCH"
 
-          # 2) Diff using three-dot syntax against HEAD
           all_changed=$(git diff --name-only origin/$BASE_BRANCH...HEAD)
           echo "🔁 All changed files in PR:"
           echo "$all_changed"
 
-          # 3) Filter for .json
           mapfile -t files < <(echo "$all_changed" | grep '\.json$' || true)
           echo "🧾 JSON files to process (${#files[@]}): ${files[*]:-<none>}"
 
-          # 4) Build the JSON array
           json_array="["
           for file in "${files[@]}"; do
             echo "📄 Checking $file"
@@ -81,14 +66,20 @@ jobs:
             fi
           done
           json_array="${json_array%,}]"
-
-          # 5) Debug and save
           echo "✅ Final JSON array:"
           echo "$json_array"
           echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
           echo "✅ Payload size: $(wc -c < files_payload.json) bytes"
 
+
+      # 3. Send a simple GET request to "/"
+      - name: 📡 Send GET request to protected root endpoint
+        run: |
+          echo "🚀 GET $API_BASE/"
+          response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE/")
+          echo "🔍 GET response:"
+          echo "$response" | jq . || true
 
 
       # 5. Send POST request with JSON payload to "/"
