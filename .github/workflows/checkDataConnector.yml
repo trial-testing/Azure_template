@@ -18,6 +18,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+
+
+      # 1. Fetch OIDC token in trusted context
+      - name: 🔐 Request OIDC token from GitHub
+        id: oidc
+        run: |
+          echo "🌐 Fetching OIDC token for audience: api://${CLIENT_ID}"
+          raw=$(curl -s \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
+          token=$(echo "$raw" | jq -r '.value')
+          echo "TOKEN=$token" >> $GITHUB_ENV
+
+
+
+
+
+
+
       - name: Checkout PR code
         uses: actions/checkout@v3
         with:
@@ -52,17 +72,8 @@ jobs:
 
           echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
+          cat files_payload.json
 
-      # 1. Fetch OIDC token in trusted context
-      - name: 🔐 Request OIDC token from GitHub
-        id: oidc
-        run: |
-          echo "🌐 Fetching OIDC token for audience: api://${CLIENT_ID}"
-          raw=$(curl -s \
-            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
-          token=$(echo "$raw" | jq -r '.value')
-          echo "TOKEN=$token" >> $GITHUB_ENV
 
 
       - name: Send JSON files to API and check response
