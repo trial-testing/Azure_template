@@ -18,40 +18,44 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🔄 Checkout PR HEAD at exact commit
+      - name: Checkout PR code
         uses: actions/checkout@v3
         with:
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
 
-      - name: 📁 Collect changed JSON files
+      - name: Get changed JSON files and contents to send to API endpoint
+        id: prepare_json_files
         run: |
-          echo "🔍 Finding changed JSON files..."
-          BASE=${{ github.event.pull_request.base.ref }}
+          echo "Collecting changed JSON files..."
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
 
-          git fetch origin $BASE
-          echo "✅ Fetched origin/$BASE"
+          mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
+          echo "Changed JSON files: ${files[@]}"
 
-          echo "🔁 Git diff from origin/$BASE to HEAD:"
-          git diff --name-only origin/$BASE...HEAD
-
-          mapfile -t files < <(git diff --name-only origin/$BASE...HEAD | grep '\.json$' || true)
-
-          echo "🧾 JSON files to process (${#files[@]}): ${files[*]:-<none>}"
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No JSON files changed in this PR."
+            echo "JSON_PAYLOAD_PATH=empty" >> $GITHUB_ENV
+            exit 0
+          fi
 
           json_array="["
           for file in "${files[@]}"; do
             if [ -f "$file" ]; then
-              content=$(jq -c . < "$file")
-              json_array+="{\"filename\":\"$file\",\"content\":$content},"
+              if jq -e . "$file" > /dev/null 2>&1; then
+                content=$(jq -c . < "$file")
+                json_array+="{\"filename\": \"${file}\", \"content\": $content},"
+              else
+                echo "❌ Invalid JSON structure in file: $file"
+                exit 1
+              fi
             fi
           done
           json_array="${json_array%,}]"
           echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
-          echo "✅ Final JSON array:"
-          cat files_payload.json
 
 
 
