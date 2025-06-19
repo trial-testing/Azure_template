@@ -70,6 +70,7 @@ jobs:
 
 
       - name: 🔐 Request OIDC token from GitHub
+        if: env.JSON_PAYLOAD_PATH != 'empty'
         id: fetch_token
         run: |
           echo "Requesting OIDC token"
