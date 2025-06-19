@@ -69,7 +69,7 @@ jobs:
             echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
 
-      - name: 🔐 Request OIDC token from GitHub
+      - name:  Request OIDC token from GitHub
         if: env.JSON_PAYLOAD_PATH != 'empty'
         id: fetch_token
         run: |
@@ -83,7 +83,8 @@ jobs:
           echo "TOKEN=$token" >> $GITHUB_ENV
 
       # 3. Send a simple GET request to "/"
-      - name:  Send GET request to protected root endpoint
+      - name:  Send GET request to check if API is live 
+        if: env.JSON_PAYLOAD_PATH != 'empty'
         run: |
         
           echo " GET request"
@@ -94,6 +95,7 @@ jobs:
 
       # 5. Send POST request with JSON payload to "/"
       - name: Send POST request with JSON payload 
+        if: env.JSON_PAYLOAD_PATH != 'empty'
         run: |
             echo "Sending JSON payload to API"
 
