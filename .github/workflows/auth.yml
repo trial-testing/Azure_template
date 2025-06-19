@@ -25,37 +25,47 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
 
+
+          
       - name: Get changed JSON files and contents to send to API endpoint
         id: prepare_json_files
         run: |
-          echo "Collecting changed JSON files..."
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
+            echo "Collecting changed JSON files..."
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
 
-          mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
-          echo "Changed JSON files: ${files[@]}"
+            mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
+            echo "Changed JSON files: ${files[@]}"
 
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "No JSON files changed in this PR."
+            filtered_files=()
+            for file in "${files[@]}"; do
+            if [[ "$file" =~ [Pp][Oo][Ll][Ll] ]]; then
+                filtered_files+=("$file")
+            fi
+            done
+
+            if [ ${#filtered_files[@]} -eq 0 ]; then
+            echo "No JSON files with 'poll' in the name changed in this PR."
             echo "JSON_PAYLOAD_PATH=empty" >> $GITHUB_ENV
             exit 0
-          fi
+            fi
 
-          json_array="["
-          for file in "${files[@]}"; do
+            json_array="["
+            for file in "${filtered_files[@]}"; do
             if [ -f "$file" ]; then
-              if jq -e . "$file" > /dev/null 2>&1; then
+                if jq -e . "$file" > /dev/null 2>&1; then
                 content=$(jq -c . < "$file")
                 json_array+="{\"filename\": \"${file}\", \"content\": $content},"
-              else
+                else
                 echo "❌ Invalid JSON structure in file: $file"
                 exit 1
-              fi
+                fi
             fi
-          done
-          json_array="${json_array%,}]"
-          echo "$json_array" > files_payload.json
-          echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
+            done
+            json_array="${json_array%,}]"
+            echo "$json_array" > files_payload.json
+            echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
+
 
       - name: 🔐 Request OIDC token from GitHub
         id: fetch_token
