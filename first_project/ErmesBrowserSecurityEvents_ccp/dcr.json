@@ -1,5 +1,5 @@
 [{
-	"name": "ErmesOauthDCR1",
+	"name": "ErmesOthDCR1",
 	"apiVersion": "2021-09-01-preview",
 	"type": "Microsoft.Insights/dataCollectionRules",
 	"location": "{{location}}",
