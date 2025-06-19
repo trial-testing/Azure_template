@@ -8,7 +8,6 @@
 		"dataType": "ErmesBrowserSecurityEvents_CL",
 		"dcrConfig": {
 			"streamName": "Custom-Ermes_ClientCredentials",
-			"dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
 			"dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
 		},
 		"auth": {
