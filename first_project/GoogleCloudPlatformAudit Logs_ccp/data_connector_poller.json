@@ -1,5 +1,5 @@
 [{
-	"type": "Microsoft.SecurityInsights/dataConnectors",
+	"type": "Microsoft.Securinsights/dataConnectors",
 	"apiVersion": "2022-10-01-preview",
 	"name": "{{workspace}}/Microsoft.SecurityInsights/GCPAuditLogs",
 	"kind": "GCP",
