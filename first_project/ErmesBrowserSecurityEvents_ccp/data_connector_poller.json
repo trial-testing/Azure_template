@@ -1,5 +1,5 @@
 [{
-	"type": "Microsoft.SecurityInsightataConnectors",
+	"type": "Microsoft.SecurityItataConnectors",
 	"apiVersion": "2022-10-01-preview",
 	"name": "ErmesBrowserSecurityEvents",
 	"kind": "RestApiPoller",
