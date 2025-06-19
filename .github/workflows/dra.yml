@@ -1,5 +1,5 @@
 
-name: check draft pr
+name: check draftpr
 
 on:
   pull_request_target:
