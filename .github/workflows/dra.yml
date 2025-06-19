@@ -4,7 +4,7 @@ name: PR Validation for Polling file( chhecjijj)
 on:
   pull_request_target:
     branches:
-      - main
+      - do-not-merge|validationcheck
     types: [opened, synchronize]
 
 permissions:
