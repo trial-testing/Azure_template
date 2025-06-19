@@ -1,5 +1,5 @@
 
-name: PR Validation via OIDC !!!!!!!!!!!!!!!!!!!!!
+name: PR Validation for Polling file 
 
 on:
   pull_request_target:
@@ -44,7 +44,7 @@ jobs:
             fi
             done
 
-            echo "Changed JSON files within the scope of this workflow (Poller files): ${filtered_files[@]}"
+            echo "Changed JSON files within the scope of this workflow (Polling files): ${filtered_files[@]}"
 
             if [ ${#filtered_files[@]} -eq 0 ]; then
             echo "No JSON files with 'poll' in the name changed in this PR."
