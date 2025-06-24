@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      API_URL: ${{ secrets.SENTINEL_CONTENT_API_URL }} # 🔁 replace with your GET endpoint
+      API_URL: https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/ # 🔁 replace with your GET endpoint
 
     steps:
       - name: 🔐 Request OIDC token from GitHub
