@@ -1,5 +1,5 @@
 
-name: PR Validation for Polling file
+name: PR Validation for Polling file prod
 
 on:
   pull_request_target:
@@ -14,7 +14,7 @@ permissions:
 
 env:
   CLIENT_ID: ${{ secrets.AZURE_CONTENT_VALIDATION_CLIENT_ID }}
-  API_BASE: https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/
+  API_BASE: https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/ 
 
 jobs:
   pr-validate:
@@ -93,6 +93,13 @@ jobs:
         run: |
           response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE/")
           echo "$response" | jq . || true
+
+      - name: 📡 Send GET request with Bearer token
+        run: |
+          echo "🚀 Sending GET to $API_URL"
+          response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_URL")
+          echo "🔍 Response JSON:"
+          echo "$response" | jq .
 
       - name: Send POST request with JSON payload
         if: ${{ env.JSON_PAYLOAD_PATH != 'empty' }}
