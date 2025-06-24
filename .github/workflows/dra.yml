@@ -4,7 +4,8 @@ name: PR Validation for Polling file
 on:
   pull_request_target:
     branches:
-      - doNotMerge-ContentValidationCCP
+      # - doNotMerge-ContentValidationCCP ##########################################################################
+      - main
     types: [opened, synchronize]
 
 permissions:
