@@ -102,10 +102,12 @@ jobs:
           response=$(curl -s -X POST "$API_BASE/" -H "Authorization: Bearer $TOKEN"  -H "Content-Type: application/json"   --data-binary "@$JSON_PAYLOAD_PATH")
 
           result_status=$(echo "$response" | jq -r '.status // empty')
-          message=$(echo "$response" | jq -r '.message // "No message provided"')
+          echo message=$(echo "$response" | jq -r '.message // "No message provided"')
 
+          
+          echo "✅ $message"
           if [ "$result_status" != "passed" ]; then
-            echo -e " ❌ Validation failed: $message"
+            echo -e " ❌ Validation failed: $message "
             exit 1
           fi
 
