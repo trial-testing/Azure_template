@@ -83,24 +83,36 @@ jobs:
           response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE")
           echo "$response" | jq . || echo "⚠️ Invalid JSON response"
 
-      - name: Send POST request with JSON payload
-        if: ${{ env.JSON_PAYLOAD_PATH != 'empty' && env.SKIP_API != 'true' }}
-        run: |
-          echo "Sending JSON payload to API..."
-          response=$(curl -s -X POST "$API_BASE/polling" \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$JSON_PAYLOAD_PATH")
+      -     name: Send POST request with JSON payload
+            if: ${{ env.JSON_PAYLOAD_PATH != 'empty' && env.SKIP_API != 'true' }}
+            run: |
+                echo "Sending JSON payload to API..."
 
-          echo "API response:"
-          echo "$response" | jq .
+                response=$(curl -s -w "\n%{http_code}" -X POST "$API_BASE/polling" \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                --data-binary "@$JSON_PAYLOAD_PATH")
 
-          result_status=$(echo "$response" | jq -r '.status // empty')
-          message=$(echo "$response" | jq -r '.message // "No message provided"')
+                http_body=$(echo "$response" | sed '$d')
+                http_status=$(echo "$response" | tail -n1)
 
-          if [ "$result_status" != "passed" ]; then
-            echo "❌ Validation failed: $message"
-            exit 1
-          fi
+                echo "🔁 HTTP Status: $http_status"
+                echo "🔍 Raw Response:"
+                echo "$http_body"
 
-          echo "✅ $message"
+                # Try to parse status and message
+                result_status=$(echo "$http_body" | jq -r '.status // empty')
+                message=$(echo "$http_body" | jq -r '.message // "No message provided"')
+
+                if [ "$http_status" != "200" ]; then
+                echo "❌ API call failed with status $http_status"
+                exit 1
+                fi
+
+                if [ "$result_status" != "passed" ]; then
+                echo "❌ Validation failed: $message"
+                exit 1
+                fi
+
+                echo "✅ $message"
+

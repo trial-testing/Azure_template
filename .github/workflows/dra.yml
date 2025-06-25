@@ -1,10 +1,12 @@
-name: PR Validation for Polling g
+name: PR Validation g 
 
 on:
-  pull_request:                        # ← use pull_request so forks can be checked out
+  pull_request:
     branches:
       - main
-    types: [opened, synchronize]
+    types:
+      - opened
+      - synchronize
 
 permissions:
   id-token: write
@@ -22,7 +24,7 @@ jobs:
       - name: Checkout PR code
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}     # ← ensure forks can be checked out
+          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -31,17 +33,21 @@ jobs:
         id: prepare_json_files
         run: |
           set -eux
+
           echo "🔍 Collecting changed JSON files…"
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
 
+          # List all .json files changed between base & head
           mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep -Ei '\.json$')
           echo "→ All .json files: ${files[*]:-<none>}"
 
-          # Filter to only ones containing “poll” (case-insensitive)
+          # Filter for files containing "poll" (case-insensitive)
           filtered=()
           for f in "${files[@]}"; do
-            [[ "$f" =~ poll ]] && filtered+=("$f")
+            if [[ "$f" =~ [Pp]oll ]]; then
+              filtered+=("$f")
+            fi
           done
 
           if [ ${#filtered[@]} -eq 0 ]; then
@@ -51,17 +57,21 @@ jobs:
           fi
 
           echo "→ Polling files: ${filtered[*]}"
-          # Build the JSON array
-          json='['
+
+          # Build JSON array payload
+          json_array="["
           for f in "${filtered[@]}"; do
-            jq -c . "$f" \
-              | xargs -I% printf '{"filename":"%s","content":%s},' "$f" "%" \
-              >> tmp_payload.json
+            if jq -e . "$f" > /dev/null 2>&1; then
+              content=$(jq -c . "$f")
+              json_array+="{\"filename\":\"$f\",\"content\":$content},"
+            else
+              echo "❌ Invalid JSON structure in file: $f"
+              exit 1
+            fi
           done
-          # trim trailing comma and wrap
-          payload=$(<tmp_payload.json)
-          payload="[${payload%,}]"
-          echo "$payload" > files_payload.json
+          json_array="${json_array%,}]"
+
+          echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
       - name: Request OIDC token from GitHub
@@ -74,7 +84,7 @@ jobs:
             -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
           token=$(echo "$raw" | jq -r .value)
-          echo "✔️ Got token, length=${#token}"
+          echo "✔️ Got token (length=${#token})"
           echo "TOKEN=$token" >> $GITHUB_ENV
 
       - name: 📡 Health-check GET
@@ -83,10 +93,10 @@ jobs:
           set -eux
           echo "🚀 Hitting $API_BASE…"
           resp=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$API_BASE")
-          body="${resp::-3}"   # all but last 3 chars
-          code="${resp: -3}"   # last 3 chars
+          body="${resp::-3}"
+          code="${resp: -3}"
           echo "HTTP $code → $body"
-          if [ "${code:0:1}" != "2" ]; then
+          if [[ "${code:0:1}" != "2" ]]; then
             echo "❌ Health check failed"
             exit 1
           fi
