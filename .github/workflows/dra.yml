@@ -1,7 +1,7 @@
-name: PR Validation g 
+name: chat
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
     types:
@@ -24,7 +24,7 @@ jobs:
       - name: Checkout PR code
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}   # needed when using pull_request_target on forks
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -38,11 +38,10 @@ jobs:
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
 
-          # List all .json files changed between base & head
           mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep -Ei '\.json$')
           echo "→ All .json files: ${files[*]:-<none>}"
 
-          # Filter for files containing "poll" (case-insensitive)
+          # Case-insensitive filter for “poll”
           filtered=()
           for f in "${files[@]}"; do
             if [[ "$f" =~ [Pp]oll ]]; then
@@ -61,16 +60,15 @@ jobs:
           # Build JSON array payload
           json_array="["
           for f in "${filtered[@]}"; do
-            if jq -e . "$f" > /dev/null 2>&1; then
+            if jq -e . "$f" > /dev/null; then
               content=$(jq -c . "$f")
               json_array+="{\"filename\":\"$f\",\"content\":$content},"
             else
-              echo "❌ Invalid JSON structure in file: $f"
+              echo "❌ Invalid JSON in $f"
               exit 1
             fi
           done
           json_array="${json_array%,}]"
-
           echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
@@ -87,17 +85,33 @@ jobs:
           echo "✔️ Got token (length=${#token})"
           echo "TOKEN=$token" >> $GITHUB_ENV
 
+          
       - name: 📡 Health-check GET
         if: env.JSON_PAYLOAD_PATH != 'empty'
         run: |
           set -eux
           echo "🚀 Hitting $API_BASE…"
-          resp=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$API_BASE")
-          body="${resp::-3}"
-          code="${resp: -3}"
-          echo "HTTP $code → $body"
-          if [[ "${code:0:1}" != "2" ]]; then
-            echo "❌ Health check failed"
+          # Capture both body and status
+          resp=$(curl -s -w "\n%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            "$API_BASE")
+          body=$(echo "$resp" | sed '$d')       # all but last line
+          status=$(echo "$resp" | tail -n1)    # last line
+          echo "🔁 HTTP status: $status"
+          echo "🔍 Raw body:"
+          echo "$body"                         # always printed
+          
+          # Try to parse JSON, but don’t exit if it fails
+          if echo "$body" | jq . > /dev/null 2>&1; then
+            echo "✔️ Parsed JSON:"
+            echo "$body" | jq .
+          else
+            echo "⚠️ Body is not JSON or empty"
+          fi
+
+          # Exit non-2xx
+          if [[ "$status" != 2* ]]; then
+            echo "❌ Health check failed (status $status)"
             exit 1
           fi
 
@@ -105,10 +119,34 @@ jobs:
         if: env.JSON_PAYLOAD_PATH != 'empty'
         run: |
           set -eux
-          echo "🚀 Sending POST to $API_BASE/polling…"
-          curl -s -X POST \
-               -H "Authorization: Bearer $TOKEN" \
-               -H "Content-Type: application/json" \
-               --data-binary "@$JSON_PAYLOAD_PATH" \
-               "$API_BASE/polling" \
-            | jq .
+          echo "🚀 POSTing to $API_BASE/polling…"
+          # Capture both body and status
+          resp=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$JSON_PAYLOAD_PATH" \
+            "$API_BASE/polling")
+          body=$(echo "$resp" | sed '$d')
+          status=$(echo "$resp" | tail -n1)
+          echo "🔁 HTTP status: $status"
+          echo "🔍 Raw body:"
+          echo "$body"
+
+          # Parse JSON if possible
+          if echo "$body" | jq . > /dev/null 2>&1; then
+            echo "✔️ Parsed JSON:"
+            echo "$body" | jq .
+          else
+            echo "⚠️ Body is not JSON or empty"
+          fi
+
+          # Now inspect your API’s own “status” field if you want:
+          api_status=$(echo "$body" | jq -r '.status // empty')
+          echo "➡️ API “status” field: ${api_status:-<none>}"
+
+          if [[ "$status" != 2* ]] || [[ "$api_status" != passed ]]; then
+            echo "❌ Validation failed (HTTP $status / api.status=$api_status)"
+            exit 1
+          fi
+
+          echo "✅ All checks passed!"
