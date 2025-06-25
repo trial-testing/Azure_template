@@ -1,0 +1,82 @@
+name: Test OIDC GET Request
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write   
+  contents: read    
+
+jobs:
+  oidc-get:
+    runs-on: ubuntu-latest
+    env:
+      CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+    steps:
+      - name: 🔐 Request OIDC token from GitHub
+        id: fetch_token
+        run: |
+          echo "🌐 Requesting OIDC token..."
+          raw=$(curl -s \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
+          echo "🔁 Raw token response JSON: $raw"
+          token=$(echo "$raw" | jq -r '.value')
+          echo "✔️ Token length: ${#token}"
+          echo "TOKEN=$token" >> $GITHUB_ENV
+
+      - name: 📡 Send GET request to prod
+        run: |
+          echo "🚀 Sending GET to https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/"
+
+          # Check if TOKEN is set
+          if [ -z "$TOKEN" ]; then
+            echo "❌ TOKEN is not set. Make sure the OIDC token was fetched correctly."
+            exit 1
+          fi
+
+          # Send the GET request and capture both response and HTTP status
+          response=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $TOKEN" "https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/")
+          
+          # Split response and status
+          http_body=$(echo "$response" | sed '$d')
+          http_status=$(echo "$response" | tail -n1)
+
+          echo "🔁 HTTP Status: $http_status"
+          echo "🔍 Raw Response:"
+          echo "$http_body"
+
+          # Check if the response is valid JSON
+          if echo "$http_body" | jq . > /dev/null 2>&1; then
+            echo "✔️ Parsed JSON:"
+            echo "$http_body" | jq .
+          else
+            echo "⚠️ Response is not valid JSON or is empty."
+            exit 1
+          fi
+
+          # Fail the step if the HTTP status is not 2xx
+          if [[ "$http_status" != 2* ]]; then
+            echo "❌ Request failed with status $http_status"
+            exit 1
+          fi
+
+
+      - name: 📡 Send GET request too dev 
+        run: |
+          echo "🚀 Sending GET to dev"
+          response=$(curl -s -H "Authorization: Bearer $TOKEN" "https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/")
+          echo "🔍 Response JSON:"
+          echo "$response" | jq .
+        
+      - name: 📡 Send GET request too prod
+        run: |
+          echo "🚀 Sending GET to prod"
+          response=$(curl -s -H "Authorization: Bearer $TOKEN" "https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/")
+          echo "🔍 Response JSON:"
+          echo "$response" | jq .
+        
+
