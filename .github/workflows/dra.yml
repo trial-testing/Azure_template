@@ -1,10 +1,8 @@
-
-name: PR Validation for Polling file prod
+name: PR Validation for Polling g
 
 on:
-  pull_request_target:
+  pull_request:                        # ← use pull_request so forks can be checked out
     branches:
-      # - doNotMerge-ContentValidationCCP ##########################################################################
       - main
     types: [opened, synchronize]
 
@@ -14,7 +12,7 @@ permissions:
 
 env:
   CLIENT_ID: ${{ secrets.AZURE_CONTENT_VALIDATION_CLIENT_ID }}
-  API_BASE: https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/ 
+  API_BASE: https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/
 
 jobs:
   pr-validate:
@@ -24,96 +22,83 @@ jobs:
       - name: Checkout PR code
         uses: actions/checkout@v3
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}     # ← ensure forks can be checked out
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
 
-      - name: Get changed JSON files and contents to send to API endpoint
+      - name: Get changed JSON files and contents
         id: prepare_json_files
         run: |
-          echo "Collecting changed JSON files:"
+          set -eux
+          echo "🔍 Collecting changed JSON files…"
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
 
-          mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
-          echo "Changed JSON files:"
-          for file in "${files[@]}"; do
-            echo "$file"
+          mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep -Ei '\.json$')
+          echo "→ All .json files: ${files[*]:-<none>}"
+
+          # Filter to only ones containing “poll” (case-insensitive)
+          filtered=()
+          for f in "${files[@]}"; do
+            [[ "$f" =~ poll ]] && filtered+=("$f")
           done
 
-          filtered_files=()
-          for file in "${files[@]}"; do
-            if [[ "$file" =~ [Pp][Oo][Ll][Ll] ]]; then
-              filtered_files+=("$file")
-            fi
-          done
-
-          echo "Polling JSON files:"
-          for file in "${filtered_files[@]}"; do
-            echo "$file"
-          done
-
-          if [ ${#filtered_files[@]} -eq 0 ]; then
-            echo "No JSON files with 'poll' in the name changed in this PR."
+          if [ ${#filtered[@]} -eq 0 ]; then
+            echo "→ No polling JSON files changed; skipping validation."
             echo "JSON_PAYLOAD_PATH=empty" >> $GITHUB_ENV
             exit 0
           fi
 
-          json_array="["
-          for file in "${filtered_files[@]}"; do
-            if [ -f "$file" ]; then
-              if jq -e . "$file" > /dev/null 2>&1; then
-                content=$(jq -c . < "$file")
-                json_array+="{\"filename\": \"${file}\", \"content\": $content},"
-              else
-                echo "❌ Invalid JSON structure in file: $file"
-                exit 1
-              fi
-            fi
+          echo "→ Polling files: ${filtered[*]}"
+          # Build the JSON array
+          json='['
+          for f in "${filtered[@]}"; do
+            jq -c . "$f" \
+              | xargs -I% printf '{"filename":"%s","content":%s},' "$f" "%" \
+              >> tmp_payload.json
           done
-          json_array="${json_array%,}]"
-
-          # 🔍 Debug echo
-          echo "Constructed JSON array: $json_array"
-
-          echo "$json_array" > files_payload.json
+          # trim trailing comma and wrap
+          payload=$(<tmp_payload.json)
+          payload="[${payload%,}]"
+          echo "$payload" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
       - name: Request OIDC token from GitHub
-        if: ${{ env.JSON_PAYLOAD_PATH != 'empty' }}
+        if: env.JSON_PAYLOAD_PATH != 'empty'
         id: fetch_token
         run: |
-          raw=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"     "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
-          token=$(echo "$raw" | jq -r '.value')
+          set -eux
+          echo "🔐 Fetching OIDC token…"
+          raw=$(curl -s \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
+          token=$(echo "$raw" | jq -r .value)
+          echo "✔️ Got token, length=${#token}"
           echo "TOKEN=$token" >> $GITHUB_ENV
 
-      - name: Send GET request to check if API is live
-        if: ${{ env.JSON_PAYLOAD_PATH != 'empty' }}
-        id: check_api
+      - name: 📡 Health-check GET
+        if: env.JSON_PAYLOAD_PATH != 'empty'
         run: |
-          response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE")
-          echo "$response" | jq . || true
-
-      - name: 📡 Send GET request with Bearer token
-        run: |
-          echo "🚀 Sending GET to $API_BASE"
-          response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE")
-          echo "🔍 Response JSON:"
-          echo "$response" | jq .
-
-      - name: Send POST request with JSON payload
-        if: ${{ env.JSON_PAYLOAD_PATH != 'empty' }}
-        run: |
-          echo "Sending JSON payload to API"
-
-          response=$(curl -s -X POST "$API_BASE" -H "Authorization: Bearer $TOKEN"  -H "Content-Type: application/json"   --data-binary "@$JSON_PAYLOAD_PATH")
-
-          result_status=$(echo "$response" | jq -r '.status // empty')
-          message=$(echo "$response" | jq -r '.message // "No message provided"')
-
-          if [ "$result_status" != "passed" ]; then
-            echo -e " ❌ Validation failed: $message"
+          set -eux
+          echo "🚀 Hitting $API_BASE…"
+          resp=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $TOKEN" "$API_BASE")
+          body="${resp::-3}"   # all but last 3 chars
+          code="${resp: -3}"   # last 3 chars
+          echo "HTTP $code → $body"
+          if [ "${code:0:1}" != "2" ]; then
+            echo "❌ Health check failed"
             exit 1
           fi
 
-          echo "✅ $message"
+      - name: 📦 POST polling payload
+        if: env.JSON_PAYLOAD_PATH != 'empty'
+        run: |
+          set -eux
+          echo "🚀 Sending POST to $API_BASE/polling…"
+          curl -s -X POST \
+               -H "Authorization: Bearer $TOKEN" \
+               -H "Content-Type: application/json" \
+               --data-binary "@$JSON_PAYLOAD_PATH" \
+               "$API_BASE/polling" \
+            | jq .

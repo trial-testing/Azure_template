@@ -1,10 +1,8 @@
-
-name: dev
+name: PR Validation for Polling file prod
 
 on:
   pull_request_target:
     branches:
-      # - doNotMerge-ContentValidationCCP ##########################################################################
       - main
     types: [opened, synchronize]
 
@@ -14,7 +12,7 @@ permissions:
 
 env:
   CLIENT_ID: ${{ secrets.AZURE_CONTENT_VALIDATION_CLIENT_ID }}
-  API_BASE: ${{ secrets.SENTINEL_CONTENT_API_URL }}
+  API_BASE: https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/
 
 jobs:
   pr-validate:
@@ -31,15 +29,9 @@ jobs:
       - name: Get changed JSON files and contents to send to API endpoint
         id: prepare_json_files
         run: |
-          echo "Collecting changed JSON files:"
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
-
           mapfile -t files < <(git diff --name-only "$BASE" "$HEAD" | grep '\.json$')
-          echo "Changed JSON files:"
-          for file in "${files[@]}"; do
-            echo "$file"
-          done
 
           filtered_files=()
           for file in "${files[@]}"; do
@@ -48,34 +40,23 @@ jobs:
             fi
           done
 
-          echo "Polling JSON files:"
-          for file in "${filtered_files[@]}"; do
-            echo "$file"
-          done
-
           if [ ${#filtered_files[@]} -eq 0 ]; then
-            echo "No JSON files with 'poll' in the name changed in this PR."
+            echo "No polling JSON files changed."
             echo "JSON_PAYLOAD_PATH=empty" >> $GITHUB_ENV
             exit 0
           fi
 
           json_array="["
           for file in "${filtered_files[@]}"; do
-            if [ -f "$file" ]; then
-              if jq -e . "$file" > /dev/null 2>&1; then
-                content=$(jq -c . < "$file")
-                json_array+="{\"filename\": \"${file}\", \"content\": $content},"
-              else
-                echo "❌ Invalid JSON structure in file: $file"
-                exit 1
-              fi
+            if [ -f "$file" ] && jq -e . "$file" > /dev/null 2>&1; then
+              content=$(jq -c . < "$file")
+              json_array+="{\"filename\": \"${file}\", \"content\": $content},"
+            else
+              echo "❌ Invalid JSON in $file"
+              exit 1
             fi
           done
           json_array="${json_array%,}]"
-
-          # 🔍 Debug echo
-          echo "Constructed JSON array: $json_array"
-
           echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
@@ -83,40 +64,42 @@ jobs:
         if: ${{ env.JSON_PAYLOAD_PATH != 'empty' }}
         id: fetch_token
         run: |
-          raw=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN"     "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
-          token=$(echo "$raw" | jq -r '.value')
-          echo "TOKEN=$token" >> $GITHUB_ENV
+          echo "Requesting OIDC token..."
+          raw=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://${CLIENT_ID}")
+          echo "Raw OIDC response: $raw"
+          token=$(echo "$raw" | jq -r '.value // empty')
+          if [ -z "$token" ]; then
+            echo "❌ OIDC token is empty. Likely due to PR from fork. Skipping API calls."
+            echo "SKIP_API=true" >> $GITHUB_ENV
+          else
+            echo "TOKEN=$token" >> $GITHUB_ENV
+            echo "SKIP_API=false" >> $GITHUB_ENV
+          fi
 
-      - name: Send GET request to check if API is live
-        if: ${{ env.JSON_PAYLOAD_PATH != 'empty' }}
-        id: check_api
+      - name: Check if API is live
+        if: ${{ env.JSON_PAYLOAD_PATH != 'empty' && env.SKIP_API != 'true' }}
         run: |
-          response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE/")
-          echo "$response" | jq . || true
-
-      - name: 📡 Send GET request with Bearer token
-        run: |
-          echo "🚀 Sending GET to $API_BASE"
+          echo "Checking API health..."
           response=$(curl -s -H "Authorization: Bearer $TOKEN" "$API_BASE")
-          echo "🔍 Response JSON:"
-          echo "$response" | jq .
+          echo "$response" | jq . || echo "⚠️ Invalid JSON response"
 
       - name: Send POST request with JSON payload
-        if: ${{ env.JSON_PAYLOAD_PATH != 'empty' }}
+        if: ${{ env.JSON_PAYLOAD_PATH != 'empty' && env.SKIP_API != 'true' }}
         run: |
-          echo "Sending JSON payload to API"
+          echo "Sending JSON payload to API..."
+          response=$(curl -s -X POST "$API_BASE/polling" \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-binary "@$JSON_PAYLOAD_PATH")
 
-          response=$(curl -s -X POST "$API_BASE" -H "Authorization: Bearer $TOKEN"  -H "Content-Type: application/json"   --data-binary "@$JSON_PAYLOAD_PATH")
+          echo "API response:"
+          echo "$response" | jq .
 
           result_status=$(echo "$response" | jq -r '.status // empty')
           message=$(echo "$response" | jq -r '.message // "No message provided"')
 
-          echo $result_status
-          echo "$result_status"
-           
-          echo "✅ $message"
           if [ "$result_status" != "passed" ]; then
-            echo -e " ❌ Validation failed: $message "
+            echo "❌ Validation failed: $message"
             exit 1
           fi
 
