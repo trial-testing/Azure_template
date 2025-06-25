@@ -144,7 +144,7 @@ jobs:
           api_status=$(echo "$body" | jq -r '.status // empty')
           echo "➡️ API “status” field: ${api_status:-<none>}"
 
-          if [[ "$status" != 2* ]] || [[ "$api_status" != passed ]]; then
+          if [[ "$status" != 2* ]] || [[ "$api_status" != Passed ]]; then
             echo "❌ Validation failed (HTTP $status / api.status=$api_status)"
             exit 1
           fi
