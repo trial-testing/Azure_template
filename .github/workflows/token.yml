@@ -31,7 +31,7 @@ jobs:
       - name: 📡 Send GET request to prod
         run: |
           echo "🚀 Sending GET to https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/ "
-          response=$(curl -s -H "Authorization: Bearer $TOKEN" "https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/ ")
+          response=$(curl -s -H "Authorization: Bearer $TOKEN" "https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net ")
           echo "🔍 Response JSON:"
           echo "$response" | jq .
 
