@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 env:
-  CLIENT_ID: ${{ secrets.AZURE_CONTENT_VALIDATION_CLIENT_ID }}
+  CLIENT_ID: da7fd62a-590e-4e7a-8525-55ea01ffb1ac
   API_BASE: https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/
 
 jobs:
@@ -85,7 +85,7 @@ jobs:
           echo "✔️ Got token (length=${#token})"
           echo "TOKEN=$token" >> $GITHUB_ENV
 
-          
+
       - name: 📡 Health-check GET
         if: env.JSON_PAYLOAD_PATH != 'empty'
         run: |
