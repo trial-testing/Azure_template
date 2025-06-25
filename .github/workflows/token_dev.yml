@@ -1,4 +1,4 @@
-name: Test OIDC GET Request
+name: Test OIDC GET Request for dev
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
           fi
 
           # Send the GET request and capture both response and HTTP status
-          response=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $TOKEN" "https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/")
+          response=$(curl -s -w "\n%{http_code}" -H "Authorization: Bearer $TOKEN" "https://sentintel-content-dev-fue4ashcg9fnfge9.canadacentral-01.azurewebsites.net/")
           
           # Split response and status
           http_body=$(echo "$response" | sed '$d')
@@ -64,14 +64,6 @@ jobs:
             exit 1
           fi
 
-      - name: 📡 Send GET request too prod
-        run: |
-          echo "🚀 Sending GET to prod"
-          response=$(curl -s -H "Authorization: Bearer $TOKEN" "https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/")
-          echo "🔍 Response JSON:"
-          echo "$response" | jq .
-        
-
 
       - name: 📡 Send GET request too dev 
         run: |
@@ -80,3 +72,11 @@ jobs:
           echo "🔍 Response JSON:"
           echo "$response" | jq .
         
+      - name: 📡 Send GET request too prod
+        run: |
+          echo "🚀 Sending GET to prod"
+          response=$(curl -s -H "Authorization: Bearer $TOKEN" "https://sentinel-content-validationapi-prod-bvgsc3hjhyeqangg.canadacentral-01.azurewebsites.net/")
+          echo "🔍 Response JSON:"
+          echo "$response" | jq .
+        
+
