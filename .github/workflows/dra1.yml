@@ -78,7 +78,7 @@ jobs:
           echo "$json_array" > files_payload.json
           echo "JSON_PAYLOAD_PATH=files_payload.json" >> $GITHUB_ENV
 
-      - name: Request OIDC token from GitHub
+      - name: Request OIDC token from GitHub 
         if: ${{ env.JSON_PAYLOAD_PATH != 'empty' }}
         id: fetch_token
         run: |
