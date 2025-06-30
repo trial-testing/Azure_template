@@ -122,7 +122,7 @@ jobs:
           message=$(echo "$response" | jq -r '.message // "No message provided"')
 
           if [ "$result_status" != "passed" ]; then
-            echo -e " ❌ Validation failed: $message"
+            echo -e " ❌ Validation failed: \n $message"
             exit 1
           fi
 
