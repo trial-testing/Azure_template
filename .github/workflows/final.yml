@@ -1,4 +1,4 @@
-name: chat
+name: final
 
 on:
   pull_request_target:
@@ -96,9 +96,6 @@ jobs:
             "$API_BASE")
           body=$(echo "$resp" | sed '$d')       # all but last line
           status=$(echo "$resp" | tail -n1)    # last line
-          echo "🔁 HTTP status: $status"
-          echo "🔍 Raw body:"
-          echo "$body"                         # always printed
           
           # Try to parse JSON, but don’t exit if it fails
           if echo "$body" | jq . > /dev/null 2>&1; then
@@ -117,35 +114,16 @@ jobs:
       - name: 📦 POST polling payload
         if: env.JSON_PAYLOAD_PATH != 'empty'
         run: |
+          echo "Sending JSON payload to API"
 
-          echo "🚀 POSTing to $API_BASE/polling…"
-          # Capture both body and status
-          resp=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            --data-binary "@$JSON_PAYLOAD_PATH" \
-            "$API_BASE/polling")
-          body=$(echo "$resp" | sed '$d')
-          status=$(echo "$resp" | tail -n1)
-          echo "🔁 HTTP status: $status"
-          echo "🔍 Raw body:"
-          echo "$body"
+          response=$(curl -s -X POST "$API_BASE/polling" -H "Authorization: Bearer $TOKEN"  -H "Content-Type: application/json"   --data-binary "@$JSON_PAYLOAD_PATH")
 
-          # Parse JSON if possible
-          if echo "$body" | jq . > /dev/null 2>&1; then
-            echo "✔️ Parsed JSON:"
-            echo "$body" | jq .
-          else
-            echo "⚠️ Body is not JSON or empty"
-          fi
+          result_status=$(echo "$response" | jq -r '.status // empty')
+          message=$(echo "$response" | jq -r '.message // "No message provided"')
 
-
-          api_status=$(echo "$body" | jq -r '.status // empty')
-          echo "➡️ API “status” field: ${api_status:-<none>}"
-
-          if [[ "$status" != 2* ]] || [[ "$api_status" != Passed ]]; then
-            echo "❌ Validation failed (HTTP $status / api.status=$api_status)"
+          if [ "$result_status" != "passed" ]; then
+            echo -e " ❌ Validation failed: $message"
             exit 1
           fi
 
-          echo "✅ All checks passed!"
+          echo "✅ $message"
